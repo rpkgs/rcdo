@@ -6,13 +6,9 @@
 cdo = "cdo -f nc4 -z zip_1"
 
 #' @export
-guess_CMIP_outfile <- function(files, outdir = ".") {
-  date_begin <- basename(files) %>%
-    str_extract("\\d{6,8}(?=\\-)") %>%
-    min()
-  date_end <- basename(files) %>%
-    str_extract("(?<=\\-)\\d{6,8}") %>%
-    max()
+guess_outfile_CMIP <- function(files, outdir = ".") {
+  date_begin <- basename(files) %>% str_extract("\\d{6,8}(?=\\-)") %>% min()
+  date_end <- basename(files) %>% str_extract("(?<=\\-)\\d{6,8}") %>% max()
   prefix <- basename(files[1]) %>% str_extract(".*(?=_\\d{6,8})")
   outfile <- glue("{outdir}/{prefix}_{date_begin}-{date_end}.nc")
   outfile
@@ -20,7 +16,7 @@ guess_CMIP_outfile <- function(files, outdir = ".") {
 
 #' @export
 cdo_merge <- function(files, outfile = NULL, outdir = ".", overwrite = FALSE) {
-  if (is.null(outfile)) outfile <- guess_CMIP_outfile(files, outdir)
+  if (is.null(outfile)) outfile <- guess_outfile_CMIP(files, outdir)
   if (!file.exists(outfile) || overwrite) {
     files %<>% paste(collapse = " ")
     cmd <- glue::glue("{cdo} cat {files} {outfile}")

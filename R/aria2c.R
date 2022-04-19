@@ -17,18 +17,18 @@ wget <- function(url, outfile = NULL) {
     # }
 }
 
-options_cmip6 = list2env(list(aria2c = "aria2c"))
+# options_cmip6 = list2env(list(aria2c = "aria2c"))
 
-#' @export
-set_aria2c <- function(aria2c) {
-    options_cmip6$aria2c = aria2c
-    invisible()
-}
+# #' @export
+# set_aria2c <- function(aria2c) {
+#     options_cmip6$aria2c = aria2c
+#     invisible()
+# }
 
-#' @export
-get_aria2c <- function() {
-    options_cmip6$aria2c
-}
+# #' @export
+# get_aria2c <- function() {
+#     options_cmip6$aria2c
+# }
 
 #' aria2c
 #' 
