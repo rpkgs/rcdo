@@ -25,7 +25,13 @@
     <loc>/reference/index.html</loc>
   </url>
   <url>
+    <loc>/reference/ok.html</loc>
+  </url>
+  <url>
     <loc>/reference/rcdo-package.html</loc>
+  </url>
+  <url>
+    <loc>/reference/reexports.html</loc>
   </url>
   <url>
     <loc>/reference/wget.html</loc>
