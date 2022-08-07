@@ -1,6 +1,9 @@
 # library(Ipaper)
 # library(stringr)
 
+Sys.setenv(SKIP_SAME_TIME=1)
+# Sys.getenv("SKIP_SAME_TIME")
+
 # # https://stackoverflow.com/questions/25731393/is-there-a-way-to-crop-a-netcdf-file
 # Ipaper::prepend_path("PATH", "/opt/miniconda3/bin") # add the path of cdo
 cdo = "cdo -f nc4 -z zip_1"
@@ -27,12 +30,23 @@ cdo_merge <- function(files, outfile = NULL, outdir = ".", overwrite = FALSE) {
 
 #' cdo_combine
 #' 
+#' clip, mergetime and resample in one function
+#' 
+#' @note 
+#' ```bash
+#' export SKIP_SAME_TIME=1
+#' ```
+#' @references 
+#' 1. merge files with overlapping time periods, 2017, 
+#'  https://code.mpimet.mpg.de/boards/1/topics/1134
+#' 
 #' @export
 cdo_combine <- function(files,
                         outfile = NULL, outdir = ".",
                         # varname = NULL,
                         range = c(70, 140, 15, 55), delta = 3,
                         cdo = "cdo", ncluster = 4,
+                        f_grid = "grid_d050.txt",
                         verbose = TRUE, run = FALSE, ...) {
   if (is.null(outfile)) outfile <- guess_CMIP_outfile(files, outdir)
   # extend `range` delta deg
@@ -40,10 +54,12 @@ cdo_combine <- function(files,
   # select_var = ifelse(is.null(varname), "", glue("-select,name={varname}"))
   # {select_var}
   select_box <- glue('-apply,"-sellonlatbox,{box[1]},{box[2]},{box[3]},{box[4]}"')
+  resample <- glue("-remapbil,{f_grid}")
   infile <- glue("[ {paste(files, collapse = ' ')} ]")
-
+  
   nP <- ifelse(ncluster > 1, glue("-P {ncluster}"), "") # parallel
-  cmd <- glue("{cdo} {nP} -cat {select_box} {infile} {outfile}")
+  # cmd <- glue("{cdo} {nP} -mergetime {select_box} {infile} {outfile}")
+  cmd <- glue("{cdo} {nP} {resample} -mergetime {select_box} {infile} {outfile}")
 
   if (verbose) print(cmd)
   if (run) system(cmd)
@@ -70,8 +86,8 @@ cdo_combine_large <- function(files, outfile = NULL, chunk = 100, ...) {
 #' @param range `[lon_min, lon_max, lat_min, lat_max]`
 #' @param cellsize double
 #' @param outfile character, path of output file
-#' @param mid If `TRUE`, the first coordinate is on the middle; otherwise, on the 
-#' edge. 
+#' @param mid If `TRUE`, the first coordinate is on the middle; otherwise, 
+#' on the edge. 
 #' 
 #' @export 
 cdo_grid <- function(range = c(70, 140, 15, 55), cellsize = 0.5, mid = FALSE, 

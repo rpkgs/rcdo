@@ -13,6 +13,7 @@ cdo_combine(
   delta = 3,
   cdo = "cdo",
   ncluster = 4,
+  f_grid = "grid_d050.txt",
   verbose = TRUE,
   run = FALSE,
   ...
@@ -21,5 +22,15 @@ cdo_combine(
 cdo_combine_large(files, outfile = NULL, chunk = 100, ...)
 }
 \description{
-cdo_combine
+clip, mergetime and resample in one function
+}
+\note{
+\if{html}{\out{<div class="sourceCode bash">}}\preformatted{export SKIP_SAME_TIME=1
+}\if{html}{\out{</div>}}
+}
+\references{
+\enumerate{
+\item merge files with overlapping time periods, 2017,
+https://code.mpimet.mpg.de/boards/1/topics/1134
+}
 }

@@ -16,8 +16,8 @@ cdo_grid(
 
 \item{cellsize}{double}
 
-\item{mid}{If \code{TRUE}, the first coordinate is on the middle; otherwise, on the
-edge.}
+\item{mid}{If \code{TRUE}, the first coordinate is on the middle; otherwise,
+on the edge.}
 
 \item{outfile}{character, path of output file}
 }

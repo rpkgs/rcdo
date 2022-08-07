@@ -1,0 +1,38 @@
+#! /usr/bin/env Rscript
+library(purrr)
+library(crayon)
+library(glue)
+
+fprintf <- function (fmt, ...) cat(sprintf(fmt, ...))
+ok <- function (...) cat(green(...), sep = "\n")
+warn <- function (...) cat(red(...), sep = "\n")
+
+
+args <- commandArgs(TRUE)
+if (length(args) == 0) args = "."
+indir = args[1]
+# cat(red("文件个数:\n"))
+
+head = "  "
+list_files <- function(indir, pattern = ".", prefix = head, level = 1) {
+  files <- dir(indir, pattern)
+  dirs <- list.dirs(indir, full.names = TRUE, recursive = FALSE) %>% set_names(., basename(.))
+  
+  # basename(indir)
+  # fprintf("%s [%s]: %d\n", prefix, basename(indir), length(files) - length(dirs))
+  nfile = length(files) - length(dirs)
+  fprintf("%s [%s]: %s\n", prefix, green(basename(indir)), red(underline(bold(nfile))))
+
+  ans = level
+  if (length(dirs) > 0) {
+    prefix = paste0(prefix, head)
+    ans = map(dirs, list_files, pattern, prefix, level + 1)
+  }
+  unlist(ans) %>% max()
+}
+
+level = pmax(list_files(indir) - 2, 1)
+system(glue("du -d{level} -h {indir}"))
+# fs <- dir(indir, recursive = TRUE)
+# lst_files <- map(dirs, ~ dir(., "*.nc", full.names = TRUE))
+# map(lst_files, length) %>% str()
