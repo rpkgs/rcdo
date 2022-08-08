@@ -11,3 +11,7 @@ models2 = get_model(fs, "day_", "_hist|_ssp")
 
 info = match2(models1, models2)
 models2[-info$I_y]
+
+
+## 检查输出结果
+

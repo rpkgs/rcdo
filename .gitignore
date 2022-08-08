@@ -6,6 +6,10 @@
 
 bin/*.md
 OUTPUT
+INPUT
+*/temp
 
 *.nc
 *.jld2
+*.png
+*.pdf

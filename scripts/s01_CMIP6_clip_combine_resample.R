@@ -4,7 +4,8 @@ library(dplyr)
 library(purrr)
 devtools::load_all()
 
-scenarios = c("hist-aer", "hist-GHG", "hist-nat", "historical", "ssp126", "ssp245", "ssp585", "piControl") %>% set_names(., .) #
+# , "piControl"
+scenarios = c("hist-aer", "hist-GHG", "hist-nat", "historical", "ssp126", "ssp245", "ssp585") %>% set_names(., .) #
 indirs <- c(
   "/share/Data/CMIP6/cmip6_hurs_day", 
   "/share/Data/CMIP6/cmip6_tasmax_day"
@@ -12,7 +13,6 @@ indirs <- c(
 
 # 历史原因，之前错误的设置在了`mid=FALSE`
 cdo_grid(c(70, 140, 15, 55), mid = FALSE, outfile= "data-raw/grid_d050.txt")
-InitCluster(15)
 
 lst_fileInfo = foreach(indir =  indirs, i = icount(2)) %do% {
   lst = foreach(scenario = scenarios, i = icount()) %do% {
@@ -57,9 +57,13 @@ lst_fileInfo = foreach(indir =  indirs, i = icount(2)) %do% {
   map_depth(lst_fileInfo2, 2, nrow) %>% str()
 }
 
+lst_fileInfo2$rh
 lst_fileInfo2$tas$piControl
 
-outdirs = c("hurs", "tasmax") %>% paste0("ChinaHW_CMIP6_raw_bilinear/", .)
+InitCluster(4)
+
+outdirs = c("hurs", "tasmax") %>% paste0("INPUT/ChinaHW_CMIP6_raw_bilinear/", .)
+
 .tmp = foreach(lst = lst_fileInfo2, outdir = outdirs, icount()) %do% {
   foreach(d = lst, scenario = names(lst), icount()) %do% {
     odir = glue("{outdir}/{scenario}")
@@ -67,7 +71,14 @@ outdirs = c("hurs", "tasmax") %>% paste0("ChinaHW_CMIP6_raw_bilinear/", .)
   }
   # map(lst, merge_modelFiles, outdir = outdir)
 }
+d = lst_fileInfo2$tas$`hist-GHG`
 
+library(nctools)
+
+fs = d[model == "ACCESS-ESM1-5", file]
+# nc_date(fs[4])
+outfile = "tasmax_day_ACCESS-ESM1-5_hist-GHG_r1i1p1f1_gn_18500101-20201231.nc"
+cdo_combine(fs, outfile, ncluster = 8, run = TRUE, f_grid = "data-raw/grid_d050.txt")
 # map(, nrow)
 # lst[[5]]
 
