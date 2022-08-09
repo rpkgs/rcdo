@@ -51,17 +51,19 @@ wget <- function(url, outfile = NULL) {
 #' 
 #' @import glue
 #' @export
-aria2c <- function(infile, outdir = "OUTPUT", j = 1, x = 4, s = 5, 
+aria2c <- function(infile, outdir = "OUTPUT", j = 8, x = 1, s = 1, 
     verbose = TRUE, run = TRUE, 
-    options = "") {
+    options = "", check.rem = TRUE) {
     # aria2c_path <- get_aria2c()
     
     is_http = substr(infile, 1, 4) == "http"
     if (is_http) {
         cmd = glue::glue("aria2c -c -x{x} -j{j} -s{s} -d {outdir} {infile} {options}")
     } else {
-        aria2c_rem(infile, outdir)
-        infile <- gsub(".txt$", "_rem.txt", infile)
+        if (check.rem) {
+            aria2c_rem(infile, outdir)
+            infile <- gsub(".txt$", "_rem.txt", infile)
+        }
         cmd = glue::glue("aria2c -c -x{x} -j{j} -s{s} -i {infile} -d {outdir} {options}")
     }
     if (verbose) print(cmd)
@@ -70,7 +72,7 @@ aria2c <- function(infile, outdir = "OUTPUT", j = 1, x = 4, s = 5,
 
 #' @export
 aria2c_rem <- function(infile, outdir, verbose = TRUE) {
-    files_finished <- aria2c_finished(outdir)
+    files_finished <- aria2c_file_finished(outdir)
     infile_rem = gsub(".txt$", "_rem.txt", infile)
     
     if (length(files_finished) > 0) {
@@ -93,16 +95,20 @@ aria2c_rem <- function(infile, outdir, verbose = TRUE) {
 
 #' @rdname aria2c
 #' @export
-aria2c_finished <- function(indir, subfix = "*.nc$|*.nc4$", subfix_temp = "*.aria2$") {
+aria2c_file_finished <- function(indir, subfix = "*.nc$|*.nc4$", subfix.temp = "*.aria2$") {
     # there is no nc4 files
-    files_downloaded <- dir(indir, subfix, full.names = TRUE) #|.nc4$
-
-    files_temp <- dir(indir, subfix_temp, full.names = T) # temp file
-    files_temp <- gsub(".aria2$", "", files_temp)
-
+    files_temp = aria2c_file_temp(indir, subfix.temp)
+    
     # rm aria2c temp files
+    files_downloaded <- dir(indir, subfix, full.names = TRUE) #|.nc4$
     files_finished <- setdiff(files_downloaded, files_temp)
     files_finished
+}
+
+aria2c_file_temp <- function(indir, subfix.temp = "*.aria2$") {
+    files_temp <- dir(indir, subfix.temp, full.names = T) # temp file
+    files_temp <- gsub(subfix.temp, "", files_temp)
+    files_temp
 }
 
 file.exists <- function(file) {

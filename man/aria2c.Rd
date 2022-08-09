@@ -2,21 +2,22 @@
 % Please edit documentation in R/aria2c.R
 \name{aria2c}
 \alias{aria2c}
-\alias{aria2c_finished}
+\alias{aria2c_file_finished}
 \title{aria2c}
 \usage{
 aria2c(
   infile,
   outdir = "OUTPUT",
-  j = 1,
-  x = 4,
-  s = 5,
+  j = 8,
+  x = 1,
+  s = 1,
   verbose = TRUE,
   run = TRUE,
-  options = ""
+  options = "",
+  check.rem = TRUE
 )
 
-aria2c_finished(indir, subfix = "*.nc$|*.nc4$", subfix_temp = "*.aria2$")
+aria2c_file_finished(indir, subfix = "*.nc$|*.nc4$", subfix.temp = "*.aria2$")
 }
 \arguments{
 \item{j}{--max-concurrent-downloads=N Set maximum number of parallel downloads for
