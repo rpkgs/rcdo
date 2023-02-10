@@ -1,7 +1,9 @@
 library(CMIP6tools)
 library(Ipaper)
 library(dplyr)
+library(nctools)
 library(purrr)
+
 devtools::load_all()
 
 # , "piControl"
@@ -73,7 +75,6 @@ outdirs = c("hurs", "tasmax") %>% paste0("INPUT/ChinaHW_CMIP6_raw_bilinear/", .)
 }
 d = lst_fileInfo2$tas$`hist-GHG`
 
-library(nctools)
 
 fs = d[model == "ACCESS-ESM1-5", file]
 # nc_date(fs[4])

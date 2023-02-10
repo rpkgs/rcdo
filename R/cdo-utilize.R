@@ -46,6 +46,7 @@ cdo_combine <- function(files,
                         # varname = NULL,
                         range = c(70, 140, 15, 55), delta = 3,
                         cdo = "cdo", ncluster = 4,
+                        is_resample = FALSE, 
                         f_grid = "grid_d050.txt",
                         verbose = TRUE, run = FALSE, ...) {
   if (is.null(outfile)) outfile <- guess_CMIP_outfile(files, outdir)

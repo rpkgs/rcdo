@@ -1,17 +1,17 @@
 #' merge_modelFiles
-#' @param d obj returned by [CMIP5Files_info()]
+#' 
+#' @param d obj returned by [CMIP5Files_info]
+#' @param ... other parameters to [cdo_combine]
 #' 
 #' @import data.table
 #' @export 
-merge_modelFiles <- function(d, outdir = "ChinaHW_CMIP6_raw_bilinear") {
+CMIP_mergeModelFiles <- function(d, outdir = "ChinaHW_CMIP6_raw_bilinear", ...) {
   mkdir(outdir)
-  # d = lst[[1]]
   info = CMIP5Files_summary(d)
 
   # models_bad = c("MPI-ESM1-2-LR", "NorESM2-LM")
   fs_new = foreach(MODEL = info$model, i = icount()) %dopar% {
     # runningId(i)
-    
     di = d[model == info$model[i] & ensemble == info$ensemble[i]]
     if (unique_length(di$ensemble) != 1) {
       stop("multiple enemble axis")
@@ -22,7 +22,8 @@ merge_modelFiles <- function(d, outdir = "ChinaHW_CMIP6_raw_bilinear") {
 
     tryCatch({
       fprintf("[%02d] running: %s\n", i, basename(outfile))
-      cdo_combine(.fs, outfile, ncluster = 8, run = TRUE, f_grid = "data-raw/grid_d050.txt")
+      cdo_combine(.fs, outfile, ncluster = 8, run = TRUE, 
+        ..., f_grid = "data-raw/grid_d050.txt")
     }, error = function(e) {
       message(sprintf('[w] %s: %s', basename(outfile), e$message))
     })
