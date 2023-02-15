@@ -13,6 +13,9 @@
     <loc>/index.html</loc>
   </url>
   <url>
+    <loc>/reference/CMIP_mergeModelFiles.html</loc>
+  </url>
+  <url>
     <loc>/reference/aria2c.html</loc>
   </url>
   <url>
@@ -23,9 +26,6 @@
   </url>
   <url>
     <loc>/reference/index.html</loc>
-  </url>
-  <url>
-    <loc>/reference/merge_modelFiles.html</loc>
   </url>
   <url>
     <loc>/reference/ok.html</loc>
