@@ -1,3 +1,10 @@
+<!-- knitr::purl("scripts/ChinaHW_cluster/s01_CMIP6_clip_combine_resample.Rmd") -->
+
+## TODO
+
+采取url转file这种效果更好，如果文件不全，当即即会报错。
+
+
 ```{r}
 library(CMIP6tools)
 library(Ipaper)
@@ -5,6 +12,7 @@ library(dplyr)
 library(nctools)
 library(purrr)
 
+# Ipaper::prepend_path("PATH", "/opt/miniconda3/bin")
 devtools::load_all()
 ```
 
@@ -15,12 +23,49 @@ mount -t drvfs U: /mnt/u
 mount -t drvfs T: /mnt/t
 ```
 
+```{r}
+get_AllFiles <- function(options) {
+  links <- retrieve_links(options)
+  lst_fs <- get_files(links, options)
+  lst_fs
+}
+
+scenarios = c("hist-aer", "hist-GHG", "hist-nat", "historical", "ssp126", "ssp245", "ssp585", "piControl") %>% set_names(., .) #
+
+options_tas <- list(
+  variables   = c("tasmax", "hurs")[1],
+  frequency   = "day", # day, mon 仅限两种可选
+  scenarios   = scenarios,
+  cmip        = "cmip6",
+  OUTPUT      = "T:/CMIP6_data" %>% path_mnt()
+)
+
+options_huss <- list(
+  variables   = c("hurs", "hursmin", "huss", "tasmax")[3],
+  frequency   = "day", # day, mon 仅限两种可选
+  scenarios   = scenarios,
+  cmip        = "cmip6",
+  OUTPUT      = "U:/CMIP6_data" %>% path_mnt()
+)
+
+
+lst_fs_tas <- get_AllFiles(options_tas)
+lst_fs_huss <- get_AllFiles(options_huss)
+```
+
+## 筛选同时存在的model
+
+```{r}
+lst_fs = list(tas = lst_fs_tas[[1]], huss = lst_fs_huss[[1]])
+lst_fileInfo <- map_depth(lst_fs, 2, ~ CMIP5Files_info(.x)) %>% 
+  map(~ .[scenarios])
+```
+
+
 ## 预处理
 
 ```{r}
-# 
-scenarios = c("hist-aer", "hist-GHG", "hist-nat", "historical", "ssp126", "ssp245", "ssp585", "piControl") %>% set_names(., .) #
-
+# ssp370不考虑
 indirs <- c(
   "U:/CMIP6_data/CMIP6_huss_day" %>% path.mnt(), 
   "T:/CMIP6_data/cmip6_tasmax_day" %>% path.mnt()
@@ -31,7 +76,7 @@ indirs <- c(
 # 历史原因，之前错误的设置在了`mid=FALSE`
 cdo_grid(c(70, 140, 15, 55), mid = FALSE, outfile= "data-raw/grid_d050.txt")
 
-lst_fileInfo = foreach(indir =  indirs, i = icount(2)) %do% {
+lst_fileInfo = foreach(indir = indirs, i = icount(2)) %do% {
   lst = foreach(scenario = scenarios, i = icount()) %do% {
     idir = glue("{indir}/{scenario}")
     fs = dir(idir, "*.nc$", full.names = TRUE)
@@ -53,16 +98,23 @@ l2 = lst_fileInfo[[2]]
 info1 <- l1$historical %>% CMIP5Files_summary()
 info2 <- l2$historical %>% CMIP5Files_summary()
 
-# 重叠部分，有31个model
+models_bad = c("EC-Earth3-LR", "EC-Earth3-Veg-LR", "NorESM2-LM")
+
+# 重叠部分，有33个model
 info_his = merge(info1, info2, by = BY) %>% select(model, ensemble)
+info_his = info_his[model %!in% models_bad & ensemble != "r1i1p1f1_gr2"]
 
 ## 筛选2者皆有的model
 lst_fileInfo2 = foreach(d_rh = l1, d_tas = l2, icount()) %do% {
-  # 二者同时都存在才行
+  # 1. rh和tas同时存在的model
   info_rh = CMIP5Files_summary(d_rh)
   info_tas = CMIP5Files_summary(d_tas)
   info = merge(info_rh, info_tas, by = BY) %>% select(model, ensemble)
 
+  # 2. 历史时期要有的model
+  info %<>% merge(info_his)
+
+  # 3. 过滤文件
   d_rh %<>% merge(info, by = BY)
   d_tas %<>% merge(info, by = BY)
   list(d_rh, d_tas) %>% set_names(varnames)
@@ -74,44 +126,44 @@ for (i in 5:length(scenarios)) {
     lst_fileInfo2[[k]][[i]] %<>% merge(info_his, by = BY, all.x = FALSE)
   }
 }
-map_depth(lst_fileInfo2, 2, nrow) %>% str()
 ```
 
 ```{r}
 ok("raw:")
 map_depth(lst_fileInfo, 2, nrow) %>% str()
 
-ok("同时含有rh和tas:")
+ok("同时含有q和tasmax:")
 map_depth(lst_fileInfo2, 2, nrow) %>% str()
 ```
 
 ```{r}
-# piControl要如何处理？
-
-lst_fileInfo2$q
-lst_fileInfo2$tasmax$piControl
-
 InitCluster(4)
-
-outdirs = c("hurs", "tasmax") %>% paste0("INPUT/ChinaHW_CMIP6_raw_bilinear/", .)
-
-.tmp = foreach(lst = lst_fileInfo2, outdir = outdirs, icount()) %do% {
-  foreach(d = lst, scenario = names(lst), icount()) %do% {
-    odir = glue("{outdir}/{scenario}")
-    merge_modelFiles(d, odir)
-  }
-  # map(lst, merge_modelFiles, outdir = outdir)
-}
 ```
 
 ```{r}
+# lst_fileInfo2$q
+# lst_fileInfo2$tasmax$piControl
+dir_root = "Z:/ChinaHW/CMIP6_mergedFiles/" %>% path_mnt()
+odirs = c("hurs", "tasmax") %>% paste0(dir_root, "ChinaHW_CMIP6_raw/", .)
+
+# cdo_combine
+.tmp = foreach(lst = lst_fileInfo2, outdir = odirs, icount()) %do% {
+  foreach(d = lst, scenario = names(lst), icount()) %do% {
+    odir = glue("{outdir}/{scenario}")
+    mkdir(odir)
+    
+    CMIP_mergeModelFiles(d, odir, is_resample = FALSE)
+  }
+}
+```
+
+```{r, eval=FALSE}
 d <- lst_fileInfo2$tas$`hist-GHG`
 
 fs <- d[model == "ACCESS-ESM1-5", file]
 # nc_date(fs[4])
 outfile <- "tasmax_day_ACCESS-ESM1-5_hist-GHG_r1i1p1f1_gn_18500101-20201231.nc"
 cdo_combine(fs, outfile, ncluster = 8, run = TRUE, f_grid = "data-raw/grid_d050.txt")
-
 ```
 
 ```{r}
@@ -129,17 +181,11 @@ cdo_combine(fs, outfile, ncluster = 8, run = TRUE, f_grid = "data-raw/grid_d050.
 #   runningId(i)
 #   nc_date(f)
 # }
-# # NAE
+
 # # _GFDL-CM4_hist-nat_r1i1p1f1
 # library(data.table)
-# d = fread("/share/Data/CMIP6/cmip6_hurs_day-url/hurs_hist-nat.txt", header = F)[[1]]
-
+# d = fread("/share/Data/CMIP6/cmip6_hurs_day-url/hurs_hist-nat.txt", header = F)
 # CMIP5Files_info(d) %>% CMIP5Files_summary()
 
 # map(lst[3], merge_modelFiles)
-# system("which cdo")
-
-# # fs_new
-# # unlist(fs_new)
-# # export SKIP_SAME_TIME=1
 ```

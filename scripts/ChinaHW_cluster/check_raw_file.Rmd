@@ -1,0 +1,204 @@
+<!-- knitr::purl("scripts/ChinaHW_cluster/s01_CMIP6_clip_combine_resample.Rmd") -->
+
+## TODO
+
+采取url转file这种效果更好，如果文件不全，当即即会报错。
+
+
+```{r}
+library(CMIP6tools)
+library(Ipaper)
+library(dplyr)
+library(nctools)
+library(purrr)
+
+# Ipaper::prepend_path("PATH", "/opt/miniconda3/bin")
+devtools::load_all()
+devtools::load_all("/mnt/i/GitHub/rpkgs/CMIP6tools.R")
+```
+
+```{r}
+get_AllFiles <- function(options) {
+  links <- retrieve_links(options)
+  lst_fs <- get_files(links, options)
+  lst_fs
+}
+
+scenarios = c("hist-aer", "hist-GHG", "hist-nat", "historical", "ssp126", "ssp245", "ssp585", "piControl") %>% set_names(., .) #
+
+options_tas <- list(
+  variables   = c("tasmax", "hurs")[1],
+  frequency   = "day", # day, mon 仅限两种可选
+  scenarios   = scenarios,
+  cmip        = "cmip6",
+  OUTPUT      = "T:/CMIP6_data" %>% path_mnt()
+)
+
+options_huss <- list(
+  variables   = c("hurs", "hursmin", "huss", "tasmax")[3],
+  frequency   = "day", # day, mon 仅限两种可选
+  scenarios   = scenarios,
+  cmip        = "cmip6",
+  OUTPUT      = "U:/CMIP6_data" %>% path_mnt()
+)
+
+options <- options_tas
+
+lst_fs_tas <- get_AllFiles(options_tas)[[1]]
+
+lst_fs_huss <- get_AllFiles(options_huss)[[1]]
+
+## 筛选同时存在的model
+lst_fs = list(tasmax = lst_fs_tas, huss = lst_fs_huss)
+lst_fileInfo <- map_depth(lst_fs, 2, ~ CMIP5Files_info(.x))%>% 
+  map(~ .[scenarios])
+```
+
+## 预处理
+
+
+```{r}
+# devtools::load_all("/mnt/i/GitHub/rpkgs/CMIP6tools.R")
+# links <- retrieve_links(options)
+# str(links, 2)
+```
+
+```{r}
+model_bad = "FGOALS-g3"
+
+d = lst_fs_tas$`hist-aer` %>% 
+  CMIP5Files_info() %>% 
+  .[model == model_bad, ]  
+d
+
+
+dates = nc_date_fs(d$file)
+```
+
+
+```{r}
+# 重叠的部分有30个model，只处理同时含有hurs和tasmax的model
+# 避免处理不需要使用的数据
+varnames = names(lst_fileInfo)
+
+BY = c("model", "ensemble")
+l1 = lst_fileInfo[[1]]
+l2 = lst_fileInfo[[2]]
+
+info1 <- l1$historical %>% CMIP5Files_summary()
+info2 <- l2$historical %>% CMIP5Files_summary()
+
+models_bad = c("EC-Earth3-LR", "EC-Earth3-Veg-LR", "NorESM2-LM")
+
+# 重叠部分，有33个model
+info_his = merge(info1, info2, by = BY) %>% select(model, ensemble)
+info_his = info_his[model %!in% models_bad & ensemble != "r1i1p1f1_gr2"]
+
+# 这里出现了bug
+
+## 筛选2者皆有的model
+lst_fileInfo2 = foreach(d_rh = l1, d_tas = l2, icount(1)) %do% {
+  # 1. rh和tas同时存在的model
+  info_rh = CMIP5Files_summary(d_rh)
+  info_tas = CMIP5Files_summary(d_tas)
+  info = merge(info_rh, info_tas, by = BY) %>% select(model, ensemble)
+
+  # 2. 历史时期要有的model
+  info %<>% merge(info_his)
+
+  # 3. 过滤文件
+  # d_rh %<>% merge(info, by = BY)
+  # d_tas %<>% merge(info, by = BY)
+
+  # # 相对湿度文件出现了缺失
+  # list(d_rh, d_tas) %>% set_names(varnames)
+} %>% purrr::transpose()
+
+# ok("raw:")
+# map_depth(lst_fileInfo, 2, nrow) %>% str()
+ok("同时含有q和tasmax:")
+map_depth(lst_fileInfo2, 2, nrow) %>% str()
+```
+
+```{r}
+info = lst_fileInfo2$tasmax$`hist-aer`
+x = info[model == "FGOALS-g3", ]
+x
+
+d_tas[model == "FGOALS-g3"]
+```
+
+```{r}
+# lst_fileInfo2$q
+# lst_fileInfo2$tasmax$piControl
+dir_root = "Z:/ChinaHW/CMIP6_mergedFiles/" %>% path_mnt()
+odirs = varnames %>% paste0(dir_root, "ChinaHW_CMIP6_raw/", .)
+
+file.remove("log.txt")
+sink("log.txt")
+
+# cdo_combine, 
+.tmp = foreach(lst = lst_fileInfo2, outdir = odirs, icount(1)) %do% {
+  foreach(d = lst, scenario = names(lst), icount(4)) %do% {
+    odir = glue("{outdir}/{scenario}")
+    print(odir)
+    print(d$file %>% head()) 
+    mkdir(odir)
+    CMIP_mergeModelFiles(d, odir, is_resample = FALSE)
+  }
+}
+sink(NULL)
+
+```
+
+
+
+```{r}
+# 检查出错的nc文件
+fs = dir2("/mnt/u/CMIP6_data/CMIP6_huss_day/historical", "huss_day_E3SM-2-0_historical*")
+fs
+
+library(nctools)
+
+for (f in fs) {
+  tryCatch({
+    nc_date(f)
+  }, error = function(e) {
+    message(sprintf('[e] %s: %s', basename(f), e$message))
+  })
+}
+```
+
+
+```{r, eval=FALSE}
+d <- lst_fileInfo2$tas$`hist-GHG`
+
+fs <- d[model == "ACCESS-ESM1-5", file]
+# nc_date(fs[4])
+outfile <- "tasmax_day_ACCESS-ESM1-5_hist-GHG_r1i1p1f1_gn_18500101-20201231.nc"
+cdo_combine(fs, outfile, ncluster = 8, run = TRUE, f_grid = "data-raw/grid_d050.txt")
+```
+
+```{r}
+# 从9:48开始, 13:41结束，处理了约四个小时
+
+# map(lst, CMIP5Files_summary)
+# 大概半小时可以搞定
+
+# library(nctools)
+
+# file.remove(.fs[2:5])
+
+# # 2-5文件下载不全
+# .tmp = foreach(f = .fs, i = icount()) %do% {
+#   runningId(i)
+#   nc_date(f)
+# }
+
+# # _GFDL-CM4_hist-nat_r1i1p1f1
+# library(data.table)
+# d = fread("/share/Data/CMIP6/cmip6_hurs_day-url/hurs_hist-nat.txt", header = F)
+# CMIP5Files_info(d) %>% CMIP5Files_summary()
+
+# map(lst[3], merge_modelFiles)
+```

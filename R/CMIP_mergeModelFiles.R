@@ -16,16 +16,31 @@ CMIP_mergeModelFiles <- function(d, outdir = "ChinaHW_CMIP6_raw_bilinear", ...) 
     if (unique_length(di$ensemble) != 1) {
       stop("multiple enemble axis")
     }
-    .fs <- di[, file]
-    outfile = guess_outfile_CMIP(.fs, outdir)
-    if (file.exists(outfile)) return()
+    fs <- di[, file]
+    outfile = guess_outfile_CMIP(fs, outdir)
+    
+    if (file.exists(outfile)) {
+      is_good_file <- check_merged_file(outfile, fs)
+      if (is_good_file) return()
+    }
 
+    ind_valid = file.exists(fs)
+    
+    if (!all(ind_valid)) {
+      message(sprintf("[missing] %s:", basename(outfile)))
+      print(fs[!ind_valid])
+      return()
+    }
+    
+    # TODO: 增加功能，如果文件不全，要报错
     tryCatch({
       fprintf("[%02d] running: %s\n", i, basename(outfile))
-      cdo_combine(.fs, outfile, ncluster = 8, run = TRUE, 
+      cdo_combine(fs, outfile, ncluster = 8, run = TRUE, 
         ..., f_grid = "data-raw/grid_d050.txt")
     }, error = function(e) {
       message(sprintf('[w] %s: %s', basename(outfile), e$message))
     })
   }
 }
+
+merge_modelFiles <- CMIP_mergeModelFiles

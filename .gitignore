@@ -14,3 +14,7 @@ doc
 *.jld2
 *.png
 *.pdf
+
+python-zarr
+*debug*
+log.txt
