@@ -9,13 +9,13 @@
 #' @references
 #' 1. merge files with overlapping time periods, 2017,
 #'  https://code.mpimet.mpg.de/boards/1/topics/1134
-#' 
+#'
 #' @export
 cdo_combine <- function(files,
                         outfile = NULL, outdir = ".",
                         # varname = NULL,
                         range = c(70, 140, 15, 55), delta = 3,
-                        # cdo = "cdo", 
+                        # cdo = "cdo",
                         ncluster = 4,
                         is_resample = FALSE,
                         f_grid = "grid_d050.txt",
@@ -36,6 +36,7 @@ cdo_combine <- function(files,
   if (verbose) print(cmd)
   if (run) system(cmd)
 }
+# TODO: cdo -sellonlatbox 可以分开处理，这样能方便处理bug
 
 #' @rdname cdo_combine
 #' @export

@@ -1,9 +1,8 @@
 <!-- knitr::purl("scripts/ChinaHW_cluster/s01_CMIP6_clip_combine_resample.Rmd") -->
 
-## TODO
+# 说明
 
-采取url转file这种效果更好，如果文件不全，当即即会报错。
-
+> `clip` and `merge` initial CMIP6 nc files
 
 ```{r}
 library(CMIP6tools)
@@ -13,19 +12,18 @@ library(nctools)
 library(purrr)
 
 # Ipaper::prepend_path("PATH", "/opt/miniconda3/bin")
-devtools::load_all()
+devtools::load_all("/mnt/i/GitHub/rpkgs/rcdo.R")
 devtools::load_all("/mnt/i/GitHub/rpkgs/CMIP6tools.R")
 # cdo_grid(c(70, 140, 15, 55), mid = FALSE, outfile = "data-raw/grid_d050.txt")
-```
 
-```{r}
 get_AllFiles <- function(options) {
   links <- retrieve_links(options)
   lst_fs <- get_files(links, options)
   lst_fs
 }
 
-scenarios = c("hist-aer", "hist-GHG", "hist-nat", "historical", "ssp126", "ssp245", "ssp585", "piControl") %>% set_names(., .) #
+scenarios = c("ssp460", "ssp370", "hist-aer", "hist-GHG", "hist-nat", "historical", 
+  "ssp126", "ssp245", "ssp585", "piControl") %>% set_names(., .) #
 
 options_tas <- list(
   variables   = c("tasmax", "hurs")[1],
@@ -53,15 +51,6 @@ lst_fileInfo <- map_depth(lst_fs, 2, ~ CMIP5Files_info(.x))%>%
 ```
 
 ## 预处理
-
-```{r}
-model_bad = "FGOALS-g3"
-
-lst_fs_tas$`hist-aer`%>% 
-  CMIP5Files_info() %>% 
-  .[model == model_bad, ]  
-```
-
 
 ```{r}
 # 重叠的部分有30个model，只处理同时含有hurs和tasmax的model
@@ -108,27 +97,21 @@ map_depth(lst_fileInfo2, 2, nrow) %>% str()
 ```
 
 ```{r}
-info = lst_fileInfo2$tasmax$`hist-aer`
-x = info[model == "FGOALS-g3", ]
-x
-# d_tas[model == "FGOALS-g3"]
-```
-
-```{r}
 # lst_fileInfo2$q
 # lst_fileInfo2$tasmax$piControl
 dir_root = "Z:/ChinaHW/CMIP6_mergedFiles/" %>% path_mnt()
 odirs = varnames %>% paste0(dir_root, "ChinaHW_CMIP6_raw/", .)
 
-file.remove("log.txt")
+# file.remove("log.txt")
 sink("log.txt")
 
 # cdo_combine, 
-.tmp = foreach(lst = lst_fileInfo2, outdir = odirs, icount(1)) %do% {
-  foreach(d = lst, scenario = names(lst), icount(4)) %do% {
+.tmp = foreach(lst = lst_fileInfo2, outdir = odirs, i = icount()) %do% {
+  # if (i == 1) return()
+  foreach(d = lst, scenario = names(lst), icount(2)) %do% {
     odir = glue("{outdir}/{scenario}")
-    print(odir)
-    print(d$file %>% head()) 
+    print(scenario)
+    # print(d$file %>% head()) 
     mkdir(odir)
     CMIP_mergeModelFiles(d, odir, is_resample = FALSE)
   }
@@ -138,53 +121,27 @@ sink(NULL)
 ```
 
 
-
 ```{r}
-# 检查出错的nc文件
-fs = dir2("/mnt/u/CMIP6_data/CMIP6_huss_day/historical", "huss_day_E3SM-2-0_historical*")
-fs
+fs = dir2("/mnt/u/CMIP6_data/CMIP6_huss_day/ssp370", 
+  "huss_day_EC-Earth3_ssp370*")
 
-library(nctools)
+# TODO change cdo
+n = length(fs)
+.tmp <- foreach(f = fs[60:n], i = icount()) %do% {
+  runningId(i)
 
-for (f in fs) {
   tryCatch({
-    nc_date(f)
+    x = ncread(f, "huss")
   }, error = function(e) {
-    message(sprintf('[e] %s: %s', basename(f), e$message))
+    file.remove(f)
+    message(sprintf('%s: %s', f, e$message))
   })
 }
-```
-
-
-```{r, eval=FALSE}
-d <- lst_fileInfo2$tas$`hist-GHG`
-
-fs <- d[model == "ACCESS-ESM1-5", file]
-# nc_date(fs[4])
-outfile <- "tasmax_day_ACCESS-ESM1-5_hist-GHG_r1i1p1f1_gn_18500101-20201231.nc"
-cdo_combine(fs, outfile, ncluster = 8, run = TRUE, f_grid = "data-raw/grid_d050.txt")
+# file.remove(fs[58])
+# huss_day_EC-Earth3_ssp370_r1i1p1f1_gr_20150101-21001231.nc
 ```
 
 ```{r}
-# 从9:48开始, 13:41结束，处理了约四个小时
-
-# map(lst, CMIP5Files_summary)
-# 大概半小时可以搞定
-
-# library(nctools)
-
-# file.remove(.fs[2:5])
-
-# # 2-5文件下载不全
-# .tmp = foreach(f = .fs, i = icount()) %do% {
-#   runningId(i)
-#   nc_date(f)
-# }
-
-# # _GFDL-CM4_hist-nat_r1i1p1f1
-# library(data.table)
-# d = fread("/share/Data/CMIP6/cmip6_hurs_day-url/hurs_hist-nat.txt", header = F)
-# CMIP5Files_info(d) %>% CMIP5Files_summary()
-
-# map(lst[3], merge_modelFiles)
+f = "/mnt/u/CMIP6_data/CMIP6_huss_day/ssp370/huss_day_EC-Earth3_ssp370_r1i1p1f1_gr_20740101-20741231.nc"
+file.remove(f)
 ```
